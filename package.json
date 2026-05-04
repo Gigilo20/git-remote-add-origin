@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync:html": "node scripts/sync-html.cjs",
+    "sync:all": "node scripts/sync-html.cjs && git add public/index.html && git status -sb"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
