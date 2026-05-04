@@ -70,6 +70,16 @@
     </style>
 </head>
 <body class="bg-slate-50">
+<div id="wh-auth-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="width:min(420px,100%);background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+    <div style="font-weight:800;font-size:14px;margin-bottom:8px;">Admin Login</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:10px;">This system is locked. Enter admin credentials.</div>
+    <input id="wh-admin-user" type="text" placeholder="username" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:8px;" />
+    <input id="wh-admin-pass" type="password" placeholder="password" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:10px;" />
+    <button type="button" onclick="whAdminLogin()" style="width:100%;padding:9px 12px;background:#1d4ed8;color:#fff;border:0;border-radius:8px;font-weight:700;">Login</button>
+    <div id="wh-auth-msg" style="font-size:11px;color:#dc2626;margin-top:8px;"></div>
+  </div>
+</div>
 <!-- Mobile header (shown only on < lg screens) -->
 <div id="mob-header">
     <div style="display:flex;align-items:center;gap:10px;">
@@ -158,11 +168,25 @@
                     <div class="text-[10px] text-slate-400 flex items-center">💡 ფაილები ავტომ. ინახება კეშში შემდეგი ჩატვირთვისთვის</div>
                 </div>
                 <div id="wh-cloud-panel" class="hidden mt-3 p-3 border border-indigo-200 rounded-lg bg-indigo-50/90">
-                    <div class="text-[10px] font-bold text-indigo-900 mb-2">☁️ Supabase სინქი (იგივე დომენი — localhost / Vercel)</div>
+                    <div class="text-[10px] font-bold text-indigo-900 mb-2">☁️ Cloud sync (Supabase/Firebase)</div>
+                    <div class="flex flex-wrap gap-2 items-center mb-2">
+                        <label class="text-[10px] text-slate-600">Provider:</label>
+                        <select id="wh-sync-provider" class="text-xs p-2 border rounded">
+                            <option value="supabase" selected>Supabase</option>
+                            <option value="firebase">Firebase</option>
+                        </select>
+                        <input type="datetime-local" id="wh-history-at" class="text-xs p-2 border rounded" />
+                        <button type="button" onclick="whCloudLoadAt()" class="text-xs bg-white border border-indigo-300 text-indigo-900 px-3 py-2 rounded font-bold">Load at</button>
+                    </div>
                     <div class="flex flex-wrap gap-2 items-center">
-                        <input type="password" id="wh-sync-secret" placeholder="WAREHOUSE_SYNC_SECRET (ერთხელ)" class="text-xs p-2 border rounded flex-1 min-w-[160px] max-w-md">
-                        <button type="button" onclick="whCloudPush()" class="text-xs bg-indigo-600 text-white px-3 py-2 rounded font-bold hover:bg-indigo-700">ღრუბელში</button>
-                        <button type="button" onclick="whCloudPull()" class="text-xs bg-white border border-indigo-300 text-indigo-900 px-3 py-2 rounded font-bold hover:bg-indigo-50">ღრუბლიდან</button>
+                        <input type="password" id="wh-sync-secret" placeholder="WAREHOUSE_SYNC_SECRET" class="text-xs p-2 border rounded flex-1 min-w-[160px] max-w-md">
+                        <button type="button" onclick="whCloudPush()" class="text-xs bg-indigo-600 text-white px-3 py-2 rounded font-bold hover:bg-indigo-700">Save cloud</button>
+                        <button type="button" onclick="whCloudPull()" class="text-xs bg-white border border-indigo-300 text-indigo-900 px-3 py-2 rounded font-bold hover:bg-indigo-50">Load latest</button>
+                        <button type="button" onclick="whCloudList()" class="text-xs bg-white border border-indigo-300 text-indigo-900 px-3 py-2 rounded font-bold hover:bg-indigo-50">History</button>
+                    </div>
+                    <div class="mt-2 flex gap-2 items-center flex-wrap">
+                        <select id="wh-history-list" class="text-xs p-2 border rounded min-w-[220px]"></select>
+                        <button type="button" onclick="whCloudLoadSelected()" class="text-xs bg-white border border-indigo-300 text-indigo-900 px-3 py-2 rounded font-bold">Load selected</button>
                     </div>
                     <div id="wh-cloud-msg" class="text-[10px] text-slate-600 mt-2"></div>
                 </div>
@@ -6247,38 +6271,50 @@ window.clfInit=function(){
   else setTimeout(rmWireUp,300);
 })();
 
-/* ── Vercel + Supabase სინქი (კეში → warehouse_snapshots) ── */
+/* Cloud sync + history + admin auth */
 (function(){
 function whHostOk(){try{const h=location.hostname;return h==='localhost'||h==='127.0.0.1'||!!h&&h.endsWith('.vercel.app');}catch(e){return false;}}
 function whClientId(){var k=localStorage.getItem('wh_client_id');if(!k){k='wh_'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('wh_client_id',k);}return k;}
 function whSecret(){return (document.getElementById('wh-sync-secret')&&document.getElementById('wh-sync-secret').value||'').trim()||sessionStorage.getItem('wh_sync_secret')||'';}
+function whProvider(){var sel=document.getElementById('wh-sync-provider');var v=(sel&&sel.value)||localStorage.getItem('wh_sync_provider')||'supabase';if(sel)sel.value=v;localStorage.setItem('wh_sync_provider',v);return v;}
+function whBasePath(){return whProvider()==='firebase'?'/api/firebase/sync':'/api/warehouse/sync';}
+function whToken(){return sessionStorage.getItem('wh_admin_token')||'';}
+function whAuthHeaders(extra){var h=extra||{};h['Authorization']='Bearer '+whToken();return h;}
+function whMsg(t){var m=document.getElementById('wh-cloud-msg');if(m)m.textContent=t;if(typeof log==='function')log(t);}
+async function whApiFetch(url,opt){var o=opt||{};o.headers=whAuthHeaders(o.headers||{});return fetch(url,o);}
+window.whAdminLogin=async function(){var u=(document.getElementById('wh-admin-user')&&document.getElementById('wh-admin-user').value||'').trim();var p=(document.getElementById('wh-admin-pass')&&document.getElementById('wh-admin-pass').value||'');var m=document.getElementById('wh-auth-msg');var r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});var j=await r.json().catch(function(){return{};});if(!r.ok||!j.token){if(m)m.textContent='Login failed';return;}sessionStorage.setItem('wh_admin_token',j.token);var ov=document.getElementById('wh-auth-overlay');if(ov)ov.style.display='none';};
+async function whEnsureAuth(){if(!whHostOk())return true;var token=whToken();var ok=false;if(token){try{var r=await fetch('/api/auth/verify',{headers:{'Authorization':'Bearer '+token}});ok=r.ok;}catch(e){ok=false;}}var ov=document.getElementById('wh-auth-overlay');if(!ok){if(ov)ov.style.display='flex';return false;}if(ov)ov.style.display='none';return true;}
 window.whCloudPush=async function(){
-  var s=whSecret();if(!s){alert('შეიყვანეთ WAREHOUSE_SYNC_SECRET');return;}
+  if(!(await whEnsureAuth()))return;
+  var s=whSecret();if(!s){alert('Enter WAREHOUSE_SYNC_SECRET');return;}
   sessionStorage.setItem('wh_sync_secret',s);
   var keys=['wp_cache_inv','wp_cache_sales','wp_cache_cargo','wp_cache_deficit'],payload={},k,i,v;
   for(i=0;i<keys.length;i++){k=keys[i];v=localStorage.getItem(k);if(v)try{payload[k]=JSON.parse(v);}catch(e){payload[k]=v;}}
-  var lab=(typeof prompt==='function'?prompt('ლეიბლი (არასავალდებულო):','manual'):null)||'manual';
-  var r=await fetch('/api/warehouse/sync',{method:'POST',headers:{'Content-Type':'application/json','x-warehouse-secret':s},body:JSON.stringify({client_id:whClientId(),label:lab,payload:payload})});
+  var lab=(typeof prompt==='function'?prompt('Label (optional):','manual'):null)||'manual';
+  var r=await whApiFetch(whBasePath(),{method:'POST',headers:{'Content-Type':'application/json','x-warehouse-secret':s},body:JSON.stringify({client_id:whClientId(),label:lab,payload:payload})});
   var j=await r.json().catch(function(){return{};});
-  var m=document.getElementById('wh-cloud-msg');if(m)m.textContent=r.ok?'✅ შენახული: '+(j.id||'ok'):'❌ '+(j.error||r.status);
-  if(typeof log==='function')log((m&&m.textContent)||'');
+  whMsg(r.ok?('Saved ['+whProvider()+']: '+(j.id||'ok')):('Error: '+(j.error||r.status)));
 };
 window.whCloudPull=async function(){
-  var s=whSecret();if(!s){alert('შეიყვანეთ WAREHOUSE_SYNC_SECRET');return;}
+  if(!(await whEnsureAuth()))return;
+  var s=whSecret();if(!s){alert('Enter WAREHOUSE_SYNC_SECRET');return;}
   sessionStorage.setItem('wh_sync_secret',s);
-  var r=await fetch('/api/warehouse/sync?client_id='+encodeURIComponent(whClientId()),{headers:{'x-warehouse-secret':s}});
+  var r=await whApiFetch(whBasePath()+'?client_id='+encodeURIComponent(whClientId()),{headers:{'x-warehouse-secret':s}});
   var j=await r.json().catch(function(){return{};});
-  var m=document.getElementById('wh-cloud-msg');
-  if(!r.ok){if(m)m.textContent='❌ '+(j.error||r.status);if(typeof log==='function')log(m.textContent);return;}
+  if(!r.ok){whMsg('Error: '+(j.error||r.status));return;}
   var p=j.payload||{},key;
   for(key in p){if(!Object.prototype.hasOwnProperty.call(p,key))continue;try{localStorage.setItem(key,typeof p[key]==='string'?p[key]:JSON.stringify(p[key]));}catch(e){}}
-  if(m)m.textContent='✅ ჩატვირთული — განაახლეთ გვერდი ან გაუშვით კეშიდან ჩატვირთვა';
-  if(typeof log==='function')log(m.textContent);
+  whMsg('Loaded latest ['+whProvider()+']');
 };
+window.whCloudList=async function(){if(!(await whEnsureAuth()))return;var s=whSecret();if(!s){alert('Enter WAREHOUSE_SYNC_SECRET');return;}var r=await whApiFetch(whBasePath()+'?mode=list&client_id='+encodeURIComponent(whClientId())+'&limit=100',{headers:{'x-warehouse-secret':s}});var j=await r.json().catch(function(){return{};});if(!r.ok){whMsg('Error: '+(j.error||r.status));return;}var sel=document.getElementById('wh-history-list');if(!sel)return;sel.innerHTML='';(j.items||[]).forEach(function(it){var o=document.createElement('option');o.value=it.created_at||'';o.textContent=(it.created_at||'n/a')+' | '+(it.label||'-');sel.appendChild(o);});whMsg('History loaded: '+((j.items||[]).length||0));};
+window.whCloudLoadSelected=async function(){var sel=document.getElementById('wh-history-list');if(!sel||!sel.value){whMsg('Select history item first');return;}var inp=document.getElementById('wh-history-at');if(inp)inp.value=sel.value.slice(0,16);await window.whCloudLoadAt();};
+window.whCloudLoadAt=async function(){if(!(await whEnsureAuth()))return;var s=whSecret();if(!s){alert('Enter WAREHOUSE_SYNC_SECRET');return;}var atInput=document.getElementById('wh-history-at');var atRaw=(atInput&&atInput.value)||'';if(!atRaw){whMsg('Pick date/time first');return;}var atIso=new Date(atRaw).toISOString();var r=await whApiFetch(whBasePath()+'?client_id='+encodeURIComponent(whClientId())+'&at='+encodeURIComponent(atIso),{headers:{'x-warehouse-secret':s}});var j=await r.json().catch(function(){return{};});if(!r.ok){whMsg('Error: '+(j.error||r.status));return;}var p=j.payload||{},key;for(key in p){if(!Object.prototype.hasOwnProperty.call(p,key))continue;try{localStorage.setItem(key,typeof p[key]==='string'?p[key]:JSON.stringify(p[key]));}catch(e){}}whMsg('Loaded snapshot @ '+(j.created_at||atIso));};
 function whCloudInit(){
   if(!whHostOk())return;
-  var p=document.getElementById('wh-cloud-panel');if(p)p.classList.remove('hidden');
+  var panel=document.getElementById('wh-cloud-panel');if(panel)panel.classList.remove('hidden');
   var sec=sessionStorage.getItem('wh_sync_secret');if(sec){var inp=document.getElementById('wh-sync-secret');if(inp)inp.value=sec;}
+  var sel=document.getElementById('wh-sync-provider');if(sel){sel.value=localStorage.getItem('wh_sync_provider')||'supabase';sel.addEventListener('change',function(){localStorage.setItem('wh_sync_provider',sel.value);});}
+  whEnsureAuth();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',whCloudInit);else whCloudInit();
 })();

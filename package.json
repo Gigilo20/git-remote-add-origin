@@ -1,25 +1,26 @@
 {
-  "name": "warehouse-cloud",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "sync:html": "node scripts/sync-html.cjs",
-    "sync:all": "node scripts/sync-html.cjs && git add public/index.html && git status -sb"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
-    "firebase-admin": "^13.8.0",
-    "next": "^15.1.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.0.0",
-    "typescript": "^5.7.0"
-  }
+    "name":  "warehouse-cloud",
+    "version":  "1.0.0",
+    "private":  true,
+    "scripts":  {
+                    "dev":  "next dev --turbopack",
+                    "build":  "next build",
+                    "start":  "next start",
+                    "lint":  "next lint",
+                    "sync:html":  "node scripts/sync-html.cjs",
+                    "sync:all":  "node scripts/sync-html.cjs \u0026\u0026 git add public/index.html \u0026\u0026 git status -sb",
+                    "sync:html:v10":  "node scripts/sync-html-v10.cjs"
+                },
+    "dependencies":  {
+                         "@supabase/supabase-js":  "^2.49.1",
+                         "firebase-admin":  "^13.8.0",
+                         "next":  "^15.1.0",
+                         "react":  "^19.0.0",
+                         "react-dom":  "^19.0.0"
+                     },
+    "devDependencies":  {
+                            "@types/node":  "^22.10.0",
+                            "@types/react":  "^19.0.0",
+                            "typescript":  "^5.7.0"
+                        }
 }
