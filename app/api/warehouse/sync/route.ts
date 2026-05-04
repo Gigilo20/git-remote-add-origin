@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { readBearerToken, verifyAdminToken } from '@/app/lib/adminAuth';
 
 function supabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,9 +16,13 @@ function checkSecret(req: NextRequest) {
   return h === secret;
 }
 
+function checkAdmin(req: NextRequest) {
+  return verifyAdminToken(readBearerToken(req));
+}
+
 /** POST — ბრაუზერის localStorage-ის მსგავსი snapshot (JSON) Supabase-ში */
 export async function POST(req: NextRequest) {
-  if (!checkSecret(req)) {
+  if (!checkSecret(req) || !checkAdmin(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const sb = supabaseAdmin();
@@ -54,7 +59,7 @@ export async function POST(req: NextRequest) {
 
 /** GET — ბოლო snapshot client_id-ით */
 export async function GET(req: NextRequest) {
-  if (!checkSecret(req)) {
+  if (!checkSecret(req) || !checkAdmin(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const sb = supabaseAdmin();
@@ -65,6 +70,34 @@ export async function GET(req: NextRequest) {
   const client_id = req.nextUrl.searchParams.get('client_id');
   if (!client_id) {
     return NextResponse.json({ error: 'client_id query required' }, { status: 400 });
+  }
+  const mode = req.nextUrl.searchParams.get('mode') || 'latest';
+  const limit = Math.max(1, Math.min(200, Number(req.nextUrl.searchParams.get('limit') || 30)));
+  const at = req.nextUrl.searchParams.get('at');
+
+  if (mode === 'list') {
+    const { data, error } = await sb
+      .from('warehouse_snapshots')
+      .select('id, created_at, label')
+      .eq('client_id', client_id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ items: data || [] });
+  }
+
+  if (at) {
+    const { data, error } = await sb
+      .from('warehouse_snapshots')
+      .select('id, created_at, label, payload')
+      .eq('client_id', client_id)
+      .lte('created_at', at)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(data);
   }
 
   const { data, error } = await sb
