@@ -51,7 +51,7 @@
             }
             aside#sidebar {
                 position: fixed !important; top: 0 !important; left: 0 !important;
-                height: 100% !important; width: 280px !important;
+                height: 100% !important; width: min(86vw, 320px) !important;
                 z-index: 150 !important; overflow-y: auto;
                 transform: translateX(-100%);
                 transition: transform .28s cubic-bezier(.4,0,.2,1);
@@ -59,13 +59,48 @@
             aside#sidebar.mob-open { transform: translateX(0); }
             main { padding: 12px !important; }
             main { padding-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px)) !important; }
-            .tab-btn { min-height: 48px; }
+            .tab-btn { min-height: 48px; font-size: 14px; }
             /* Make upload cards more touch-friendly */
             .glass-card.p-6 { padding: 1rem !important; }
             /* Stats grid: 2 cols on mobile */
             #stat-inv, #stat-val-gel, #stat-val-usd, #stat-cargo { font-size: 1rem; }
             /* Horizontal scroll for tables on mobile */
             .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+            input, select, button, textarea { min-height: 42px; }
+            .custom-scrollbar { scrollbar-width: thin; }
+            body, html { overflow-x: hidden; }
+        }
+
+        @media (max-width: 767px) {
+            #mob-header { padding-left: 12px; padding-right: 12px; }
+            main { padding: 10px !important; }
+            .glass-card { border-radius: 12px; }
+            h2 { font-size: 1.1rem !important; line-height: 1.35; }
+            .grid { gap: 10px !important; }
+            .overflow-x-auto table { min-width: 760px; }
+            .overflow-x-auto th, .overflow-x-auto td { white-space: nowrap; }
+            #tab-upload .grid.grid-cols-1.md\\:grid-cols-4,
+            #tab-cargo .grid.grid-cols-1.md\\:grid-cols-2,
+            #tab-order .grid.grid-cols-2.sm\\:grid-cols-4.lg\\:grid-cols-7 {
+                grid-template-columns: 1fr !important;
+            }
+            #tab-order .flex.justify-between.items-end.mb-6 {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            #tab-order .flex.justify-between.items-end.mb-6 > div:last-child {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            #tab-order .flex.justify-between.items-end.mb-6 > div:last-child button {
+                width: 100%;
+                min-height: 40px;
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+            canvas { max-height: 260px !important; }
         }
     </style>
 </head>
