@@ -321,7 +321,24 @@
                 <div class="glass-card p-4 text-center border-2 border-red-200"><p class="text-[10px] text-red-500">⚠️</p><h4 class="text-xl font-bold text-red-600" id="sum-deficit">0</h4></div>
             </div>
             <div class="glass-card p-4 mb-4 flex gap-4 items-center flex-wrap"><label class="text-xs flex items-center gap-2"><input type="checkbox" id="filter-order-only" class="w-4 h-4"><span>მხოლოდ შესაკვეთი</span></label><input type="text" id="order-search" placeholder="ძიება..." class="p-2 border rounded text-sm flex-1 min-w-[200px]"></div>
-            <div class="glass-card overflow-hidden"><table class="w-full text-left text-sm"><thead class="bg-slate-50 border-b sticky top-0"><tr><th class="p-3 text-[10px] uppercase text-slate-500 w-80">პროდუქტი</th><th class="p-3 text-[10px] uppercase text-slate-500 text-right">ნაშთი</th><th class="p-3 text-[10px] uppercase text-blue-600 text-right" title="+გზაში = Lead+Coverage ჯამი; პატარა ციფრი: L+C ცალ-ცალკე">+გზაში სულ</th><th class="p-3 text-[10px] uppercase text-red-500 text-right">-გაყიდვა</th><th class="p-3 text-[10px] uppercase text-slate-500 text-right">=ჩამოსვ.</th><th class="p-3 text-[10px] uppercase text-green-600 text-right">სამიზნე 2.5თვ</th><th class="p-3 text-[10px] uppercase text-white bg-blue-600 text-center w-28">შეკვეთა</th></tr></thead><tbody id="order-tbody"></tbody></table></div>
+            <div class="glass-card overflow-hidden">
+              <div class="overflow-x-auto custom-scrollbar max-h-[420px]">
+                <table class="w-full text-left text-sm min-w-[720px]">
+                  <thead class="bg-slate-50 border-b sticky top-0">
+                    <tr>
+                      <th class="p-3 text-[10px] uppercase text-slate-500 w-80">პროდუქტი</th>
+                      <th class="p-3 text-[10px] uppercase text-slate-500 text-right">ნაშთი</th>
+                      <th class="p-3 text-[10px] uppercase text-blue-600 text-right" title="+გზაში = Lead+Coverage ჯამი; პატარა ციფრი: L+C ცალ-ცალკე">+გზაში სულ</th>
+                      <th class="p-3 text-[10px] uppercase text-red-500 text-right">-გაყიდვა</th>
+                      <th class="p-3 text-[10px] uppercase text-slate-500 text-right">=ჩამოსვ.</th>
+                      <th class="p-3 text-[10px] uppercase text-green-600 text-right">სამიზნე 2.5თვ</th>
+                      <th class="p-3 text-[10px] uppercase text-white bg-blue-600 text-center w-28">შეკვეთა</th>
+                    </tr>
+                  </thead>
+                  <tbody id="order-tbody"></tbody>
+                </table>
+              </div>
+            </div>
         </section>
 
         <!-- Scenario & Plan -->
