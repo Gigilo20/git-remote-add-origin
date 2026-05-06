@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { readBearerToken, verifyAdminToken } from '@/app/lib/adminAuth';
 
 function supabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,13 +15,9 @@ function checkSecret(req: NextRequest) {
   return h === secret;
 }
 
-function checkAdmin(req: NextRequest) {
-  return verifyAdminToken(readBearerToken(req));
-}
-
 /** POST — ბრაუზერის localStorage-ის მსგავსი snapshot (JSON) Supabase-ში */
 export async function POST(req: NextRequest) {
-  if (!checkSecret(req) || !checkAdmin(req)) {
+  if (!checkSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const sb = supabaseAdmin();
@@ -59,7 +54,7 @@ export async function POST(req: NextRequest) {
 
 /** GET — ბოლო snapshot client_id-ით */
 export async function GET(req: NextRequest) {
-  if (!checkSecret(req) || !checkAdmin(req)) {
+  if (!checkSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const sb = supabaseAdmin();

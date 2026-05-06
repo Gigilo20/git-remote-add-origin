@@ -3055,7 +3055,7 @@ function downloadOrderExcel(group){
 async function processFile(f,t,fromCache=false){if(!f)return;const i=document.getElementById(`info-${t}`);i.textContent='...';try{const b=await f.arrayBuffer();
     // Save to localStorage cache (only when uploading fresh, not when loading from cache)
     if(!fromCache){try{const arr=new Uint8Array(b);let bin='';for(let j=0;j<arr.length;j++)bin+=String.fromCharCode(arr[j]);localStorage.setItem(`wp_cache_${t}`,JSON.stringify({n:f.name,d:btoa(bin),ts:Date.now()}));log(`💾 ${t} შენახულია კეშში`);}catch(e){log('⚠️ კეშში შენახვა ვერ მოხერხდა: '+e.message);}}
-    const wb=XLSX.read(b,{type:'array',cellDates:true});let d;if(t==='cargo'&&wb.SheetNames.length>1){d=[];wb.SheetNames.forEach((sn,si)=>{const sd=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1});if(si===0)d.push(...sd);else d.push(...sd.slice(1));});log(`📋 cargo: ${wb.SheetNames.length} შიტი გაერთიანდა, სულ ${d.length} სტრ.`);}else{d=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});}if(t==='inv')handleInventory(d);else if(t==='sales')handleSales(d);else if(t==='cargo')handleCargo(d);else if(t==='deficit')handleDeficit(d);if(fromCache){const ei=document.getElementById(`info-${t}`);if(ei&&ei.textContent==='✅')ei.textContent='✅ (კეში)';}}catch(e){console.error(e);i.textContent='❌';alert(e.message);}}
+    const wb=XLSX.read(b,{type:'array',cellDates:true});let d;if(t==='cargo'&&wb.SheetNames.length>1){d=[];wb.SheetNames.forEach((sn,si)=>{const sd=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1});if(si===0)d.push(...sd);else d.push(...sd.slice(1));});log(`📋 cargo: ${wb.SheetNames.length} შიტი გაერთიანდა, სულ ${d.length} სტრ.`);}else{d=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});}if(t==='inv')handleInventory(d);else if(t==='sales')handleSales(d);else if(t==='cargo')handleCargo(d);else if(t==='deficit')handleDeficit(d);if(!fromCache&&typeof window.whAutoSyncSchedule==='function')window.whAutoSyncSchedule('upload:'+t);if(fromCache){const ei=document.getElementById(`info-${t}`);if(ei&&ei.textContent==='✅')ei.textContent='✅ (კეში)';}}catch(e){console.error(e);i.textContent='❌';alert(e.message);}}
 
 // ====== ROOF PRICE CALCULATOR ======
 const PROFILES={
@@ -6656,11 +6656,40 @@ window.clfInit=function(){
 function whHostOk(){try{const h=location.hostname;return h==='localhost'||h==='127.0.0.1'||!!h&&h.endsWith('.vercel.app');}catch(e){return false;}}
 function whClientId(){var k=localStorage.getItem('wh_client_id');if(!k){k='wh_'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('wh_client_id',k);}return k;}
 function whSecret(){return (document.getElementById('wh-sync-secret')&&document.getElementById('wh-sync-secret').value||'').trim()||sessionStorage.getItem('wh_sync_secret')||'';}
+function whCollectPayload(){
+  var keys=['wp_cache_inv','wp_cache_sales','wp_cache_cargo','wp_cache_deficit'],payload={},k,i,v;
+  for(i=0;i<keys.length;i++){k=keys[i];v=localStorage.getItem(k);if(v)try{payload[k]=JSON.parse(v);}catch(e){payload[k]=v;}}
+  return payload;
+}
+var _whAutoSyncTimer=null,_whAutoSyncInFlight=false,_whAutoSyncPending=false;
+window.whAutoSyncSchedule=function(reason){
+  if(!whHostOk())return;
+  if(_whAutoSyncTimer)clearTimeout(_whAutoSyncTimer);
+  _whAutoSyncTimer=setTimeout(function(){window.whAutoSyncNow(reason||'auto');},1200);
+};
+window.whAutoSyncNow=async function(reason){
+  if(_whAutoSyncInFlight){_whAutoSyncPending=true;return;}
+  var s=whSecret();if(!s)return;
+  _whAutoSyncInFlight=true;
+  try{
+    sessionStorage.setItem('wh_sync_secret',s);
+    var payload=whCollectPayload();
+    var r=await fetch('/api/warehouse/sync',{method:'POST',headers:{'Content-Type':'application/json','x-warehouse-secret':s},body:JSON.stringify({client_id:whClientId(),label:'auto:'+(reason||'upload'),payload:payload})});
+    var j=await r.json().catch(function(){return{};});
+    var m=document.getElementById('wh-cloud-msg');
+    if(m)m.textContent=r.ok?'✅ ავტო-სინქი დასრულდა':'❌ ავტო-სინქი: '+(j.error||r.status);
+    if(typeof log==='function')log('☁️ ავტო-სინქი ['+(reason||'upload')+']: '+(r.ok?'OK':(j.error||r.status)));
+  }catch(e){
+    if(typeof log==='function')log('☁️ ავტო-სინქის შეცდომა: '+(e&&e.message?e.message:e));
+  }finally{
+    _whAutoSyncInFlight=false;
+    if(_whAutoSyncPending){_whAutoSyncPending=false;window.whAutoSyncSchedule('queued');}
+  }
+};
 window.whCloudPush=async function(){
   var s=whSecret();if(!s){alert('შეიყვანეთ WAREHOUSE_SYNC_SECRET');return;}
   sessionStorage.setItem('wh_sync_secret',s);
-  var keys=['wp_cache_inv','wp_cache_sales','wp_cache_cargo','wp_cache_deficit'],payload={},k,i,v;
-  for(i=0;i<keys.length;i++){k=keys[i];v=localStorage.getItem(k);if(v)try{payload[k]=JSON.parse(v);}catch(e){payload[k]=v;}}
+  var payload=whCollectPayload();
   var lab=(typeof prompt==='function'?prompt('ლეიბლი (არასავალდებულო):','manual'):null)||'manual';
   var r=await fetch('/api/warehouse/sync',{method:'POST',headers:{'Content-Type':'application/json','x-warehouse-secret':s},body:JSON.stringify({client_id:whClientId(),label:lab,payload:payload})});
   var j=await r.json().catch(function(){return{};});
@@ -6683,6 +6712,7 @@ function whCloudInit(){
   if(!whHostOk())return;
   var p=document.getElementById('wh-cloud-panel');if(p)p.classList.remove('hidden');
   var sec=sessionStorage.getItem('wh_sync_secret');if(sec){var inp=document.getElementById('wh-sync-secret');if(inp)inp.value=sec;}
+  if(sec)window.whAutoSyncSchedule('init');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',whCloudInit);else whCloudInit();
 })();
