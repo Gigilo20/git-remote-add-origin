@@ -77,13 +77,16 @@
             .glass-card { border-radius: 12px; }
             h2 { font-size: 1.1rem !important; line-height: 1.35; }
             .grid { gap: 10px !important; }
-            .overflow-x-auto table { min-width: 760px; }
+            .overflow-x-auto table { min-width: 640px; }
             .overflow-x-auto th, .overflow-x-auto td { white-space: nowrap; }
+            /* Turn multi-column layouts into single-column stacks */
             #tab-upload .grid.grid-cols-1.md\\:grid-cols-4,
             #tab-cargo .grid.grid-cols-1.md\\:grid-cols-2,
-            #tab-order .grid.grid-cols-2.sm\\:grid-cols-4.lg\\:grid-cols-7 {
-                grid-template-columns: 1fr !important;
-            }
+            #tab-order .grid.grid-cols-2.sm\\:grid-cols-4.lg\\:grid-cols-7 { grid-template-columns: 1fr !important; }
+            .md\\:grid-cols-2 { grid-template-columns: 1fr !important; }
+            .lg\\:grid-cols-2 { grid-template-columns: 1fr !important; }
+            .lg\\:grid-cols-3 { grid-template-columns: 1fr !important; }
+            .md\\:grid-cols-4 { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
             #tab-order .flex.justify-between.items-end.mb-6 {
                 flex-direction: column;
                 align-items: stretch;
@@ -100,7 +103,7 @@
                 padding-left: 8px;
                 padding-right: 8px;
             }
-            canvas { max-height: 260px !important; }
+            canvas, .h-80, .h-72, .h-64 { max-height: 260px !important; height: 260px !important; }
         }
     </style>
 </head>
